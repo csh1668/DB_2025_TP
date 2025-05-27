@@ -1,0 +1,433 @@
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import LucideIcon from "@/components/icons/lucideIcon";
+import { 
+  Select, 
+  SelectContent, 
+  SelectGroup, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// 결제 방식 (탭에서 직접 하드코딩)
+
+// 신용카드 회사 목록
+const cardCompanies = [
+  { value: "shinhan", label: "신한카드" },
+  { value: "samsung", label: "삼성카드" },
+  { value: "hyundai", label: "현대카드" },
+  { value: "kb", label: "KB국민카드" },
+  { value: "lotte", label: "롯데카드" },
+  { value: "bc", label: "비씨카드" },
+  { value: "woori", label: "우리카드" },
+  { value: "hana", label: "하나카드" },
+];
+
+// 할부 개월 옵션
+const installmentOptions = [
+  { value: "0", label: "일시불" },
+  { value: "2", label: "2개월" },
+  { value: "3", label: "3개월" },
+  { value: "4", label: "4개월" },
+  { value: "5", label: "5개월" },
+  { value: "6", label: "6개월" },
+  { value: "9", label: "9개월" },
+  { value: "12", label: "12개월" },
+];
+
+// 은행 목록
+const bankOptions = [
+  { value: "kb", label: "국민은행" },
+  { value: "shinhan", label: "신한은행" },
+  { value: "woori", label: "우리은행" },
+  { value: "hana", label: "하나은행" },
+  { value: "nh", label: "농협" },
+  { value: "ibk", label: "기업은행" },
+  { value: "sc", label: "SC제일은행" },
+  { value: "kakao", label: "카카오뱅크" },
+  { value: "toss", label: "토스뱅크" },
+];
+
+export default function PaymentPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  // URL 파라미터에서 값 추출
+  const flightId = searchParams.get("flightId");
+  const seatType = searchParams.get("seatType");
+  const price = searchParams.get("price");
+  const passengerCount = searchParams.get("passengers") || "1";
+  
+  // 상태 관리
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [cardCompany, setCardCompany] = useState("");
+  const [cardNumber, setCardNumber] = useState(["", "", "", ""]);
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [installment, setInstallment] = useState("0");
+  const [bankCode, setBankCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [flight, setFlight] = useState<any>(null);
+  
+  // 항공편 정보 조회 (실제로는 API에서 가져옴)
+  useEffect(() => {
+    // 여기서는 임시로 하드코딩된 데이터를 사용
+    const temporaryFlightData = {
+      id: flightId,
+      flightCode: "KE123",
+      airline: "대한항공",
+      departureAirport: "ICN",
+      departureCity: "서울",
+      arrivalAirport: "NRT",
+      arrivalCity: "도쿄",
+      departureTime: "08:30",
+      arrivalTime: "11:00",
+      duration: "2시간 30분",
+      date: "2025-05-26",
+      businessPrice: 550000,
+      economyPrice: 250000,
+    };
+    
+    setFlight(temporaryFlightData);
+  }, [flightId]);
+  
+  // 카드 번호 입력 처리
+  const handleCardNumberChange = (index: number, value: string) => {
+    const newCardNumber = [...cardNumber];
+    // 숫자만 입력 가능
+    newCardNumber[index] = value.replace(/\D/g, '').slice(0, 4);
+    setCardNumber(newCardNumber);
+    
+    // 자동으로 다음 입력란으로 포커스 이동
+    if (value.length === 4 && index < 3) {
+      const nextInput = document.getElementById(`card-number-${index + 1}`);
+      if (nextInput) {
+        nextInput.focus();
+      }
+    }
+  };
+  
+  // 카드 유효기간 입력 처리
+  const handleExpiryChange = (value: string) => {
+    // 숫자만 입력 가능
+    const newValue = value.replace(/\D/g, '');
+    
+    if (newValue.length <= 4) {
+      const month = newValue.slice(0, 2);
+      const year = newValue.slice(2, 4);
+      
+      // MM/YY 형식으로 표시
+      if (newValue.length > 2) {
+        setCardExpiry(`${month}/${year}`);
+      } else {
+        setCardExpiry(newValue);
+      }
+    }
+  };
+    // 결제 처리
+  const handlePayment = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // 결제 처리 (실제로는 결제 API 호출)
+      // 데모용이므로 검증 생략하고 항상 성공으로 처리
+      await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 지연
+      
+      setSuccess(true);
+      
+      // 3초 후 메인 페이지로 이동 (실제로는 결제 완료 페이지로)
+      setTimeout(() => {
+        navigate('/');
+      }, 3000);
+      
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // 취소 처리
+  const handleCancel = () => {
+    if (confirm("결제를 취소하시겠습니까?")) {
+      navigate("/flights");
+    }
+  };
+  
+  // 총 결제 금액 계산
+  const totalPrice = price ? Number(price) * Number(passengerCount) : 0;
+  
+  if (!flight) {
+    return <div className="container mx-auto py-8 px-4">로딩 중...</div>;
+  }
+  
+  return (
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <h1 className="text-2xl font-bold mb-6 flex items-center">
+        <LucideIcon name="WalletCards" className="h-6 w-6 mr-2 text-primary" />
+        항공권 결제
+      </h1>
+      
+      <div className="xl:flex sm:flex-1 justify-center gap-6">
+        {/* 좌측: 항공편 정보 */}
+        <div className="flex-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LucideIcon name="Plane" className="h-5 w-5 text-primary" />
+                항공편 정보
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-bold">{flight.airline}</span>
+                    <span className="text-sm text-muted-foreground">{flight.flightCode}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-center">
+                      <div className="text-lg font-bold">{flight.departureTime}</div>
+                      <div className="text-sm text-muted-foreground">{flight.departureAirport}</div>
+                    </div>
+                    
+                    <div className="flex-1 mx-2 relative">
+                      <div className="border-t border-dashed border-muted-foreground"></div>
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-1 text-xs text-muted-foreground">{flight.duration}</div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <div className="text-lg font-bold">{flight.arrivalTime}</div>
+                      <div className="text-sm text-muted-foreground">{flight.arrivalAirport}</div>
+                    </div>
+                  </div>                    <div className="text-center font-bold text-base mb-4 flex items-center justify-center gap-2">
+                      <LucideIcon name="Calendar" className="h-4 w-4 text-primary" />
+                      {format(new Date(flight.date), 'yyyy년 MM월 dd일', { locale: ko })} / 
+                      <LucideIcon name={seatType === 'business' ? 'Star' : 'Armchair'} className="h-4 w-4 text-primary" />
+                      {seatType === 'business' ? '비즈니스석' : '이코노미석'}
+                    </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1">
+                      <LucideIcon name="Tag" className="h-3 w-3" />
+                      기본 요금
+                    </span>
+                    <span>{Number(price).toLocaleString()}원</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="flex items-center gap-1">
+                      <LucideIcon name="Users" className="h-3 w-3" />
+                      승객 수
+                    </span>
+                    <span>{passengerCount}명</span>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between font-bold">
+                    <span className="flex items-center gap-1">
+                      <LucideIcon name="Wallet" className="h-4 w-4 text-primary" />
+                      총 결제 금액
+                    </span>
+                    <span>{totalPrice.toLocaleString()}원</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* 우측: 결제 정보 */}
+        <div className="flex-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LucideIcon name="CreditCard" className="h-5 w-5 text-primary" />
+                결제 정보
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {success ? (
+                <div className="text-center py-8">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                    <LucideIcon name="Check" className="h-6 w-6 text-green-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">결제가 완료되었습니다</h3>
+                  <p className="text-muted-foreground mb-6">
+                    결제 내역은 이메일로 발송됩니다.
+                  </p>
+                  <div className="text-sm text-muted-foreground">
+                    잠시 후 메인 페이지로 이동합니다...
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {error && (
+                    <Alert variant="destructive" className="mb-6">
+                      <AlertTitle>결제 오류</AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <Tabs
+                    defaultValue="card"
+                    value={paymentMethod}
+                    onValueChange={setPaymentMethod}
+                    className="w-full"
+                  >
+                    <TabsList className="grid grid-cols-3 mb-6">
+                      <TabsTrigger value="card" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        신용/체크카드
+                      </TabsTrigger>
+                      <TabsTrigger value="vbank" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        무통장입금
+                      </TabsTrigger>
+                      <TabsTrigger value="trans" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                        계좌이체
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="card" className="space-y-4">
+                      <div className="grid gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="card-company">카드사 선택</Label>                          <Select value={cardCompany} onValueChange={setCardCompany} disabled>
+                            <SelectTrigger id="card-company">
+                              <SelectValue placeholder="국민은행" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                {cardCompanies.map((company) => (
+                                  <SelectItem key={company.value} value={company.value}>
+                                    {company.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor="card-number-0">카드 번호</Label>
+                          <div className="grid grid-cols-4 gap-2">
+                            {[0, 1, 2, 3].map((index) => (
+                              <Input
+                                key={index}
+                                id={`card-number-${index}`}
+                                inputMode="numeric"
+                                maxLength={4}
+                                value={index === 0 ? "1234" : index === 1 ? "5678" : index === 2 ? "9012" : "3456"}
+                                disabled
+                                onChange={(e) => handleCardNumberChange(index, e.target.value)}
+                                className="text-center"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="card-expiry">유효기간 (MM/YY)</Label>
+                            <Input
+                              id="card-expiry"
+                              value="12/25"
+                              onChange={(e) => handleExpiryChange(e.target.value)}
+                              placeholder="MM/YY"
+                              maxLength={5}
+                              disabled
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="card-cvc">CVC</Label>
+                            <Input
+                              id="card-cvc"
+                              value="123"
+                              onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                              inputMode="numeric"
+                              maxLength={3}
+                              placeholder="카드 뒷면 3자리"
+                              disabled
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="vbank" className="space-y-4">
+                      Not Implemented
+                    </TabsContent>
+                    
+                    <TabsContent value="trans" className="space-y-4">
+                      Not Implemented
+                    </TabsContent>
+                  </Tabs>
+                </>
+              )}
+            </CardContent>
+            <CardFooter>
+              <div className="flex flex-col sm:flex-row w-full gap-2">
+                {!success && (
+                  <>                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={handleCancel}
+                      disabled={loading}
+                    >
+                      <LucideIcon name="X" className="h-4 w-4 mr-1" />
+                      취소
+                    </Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={handlePayment}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <span className="flex items-center">
+                          <span className="mr-2">처리 중...</span>
+                          <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full"></span>
+                        </span>
+                      ) : (                        <span className="flex items-center">
+                          <LucideIcon name="CreditCard" className="mr-2 h-4 w-4" />
+                          {totalPrice.toLocaleString()}원 결제하기
+                        </span>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
