@@ -9,3 +9,13 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// window 인터페이스 확장
+interface Window {
+  flightCache?: {
+    [key: string]: {
+      departureAirport: string;
+      arrivalAirport: string;
+    };
+  };
+}

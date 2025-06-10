@@ -43,7 +43,7 @@ export function Header() {
                   </Avatar>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>{user?.name || '사용자'}</DropdownMenuLabel>
+                  <DropdownMenuLabel><b>{user?.name}</b>님 환영합니다.</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/user')}>
                     회원 정보

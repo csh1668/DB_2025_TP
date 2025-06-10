@@ -76,6 +76,14 @@ export class UserService {
     return users.length > 0 ? users[0] : null;
   }
 
+  async findByCno(cno: string): Promise<User | null> {
+    const sql = `SELECT cno, name, passwd, email, passportNumber FROM CUSTOMER WHERE cno = :1`;
+    const users = await this.dbService
+      .executeQuery<User>(sql, [cno])
+      .then((rows) => rows.map(this.mapToUser));
+    return users.length > 0 ? users[0] : null;
+  }
+
   async create(createUserDto: CreateUserDto): Promise<User> {
     try {
       // cno 중복 확인

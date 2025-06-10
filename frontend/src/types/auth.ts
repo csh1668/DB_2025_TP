@@ -1,5 +1,5 @@
 export interface LoginDto {
-  email: string;
+  emailOrCno: string;
   passwd: string;
 }
 
@@ -15,7 +15,7 @@ export interface JwtPayload {
 
 export interface AuthContextType {
   user: JwtPayload | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (emailOrCno: string, password: string) => Promise<void>;
   register: (userData: any) => Promise<void>;
   logout: () => void;
   isLoggedIn: boolean;

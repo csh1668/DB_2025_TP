@@ -11,12 +11,26 @@ export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
-  ) {}
-  async validateUser(email: string, passwd: string): Promise<any> {
-    const user = await this.userService.findByEmail(email);
+  ) {}  async validateUser(emailOrCno: string, passwd: string): Promise<any> {
+    // 이메일 또는 사용자 ID로 사용자 조회
+    let user = null;
     
+    // 이메일 주소 형식인지 확인
+    if (emailOrCno.includes('@')) {
+      user = await this.userService.findByEmail(emailOrCno);
+      if (!user) {
+        this.logger.warn(`이메일 인증 실패: ${emailOrCno}`);
+      }
+    } else {
+      // 이메일이 아니라면 사용자 ID(cno)로 시도
+      user = await this.userService.findByCno(emailOrCno);
+      if (!user) {
+        this.logger.warn(`ID 인증 실패: ${emailOrCno}`);
+      }
+    }
+    
+    // 사용자가 존재하지 않으면 null 반환
     if (!user) {
-      this.logger.warn(`이메일 인증 실패: ${email}`);
       return null;
     }
     
@@ -34,20 +48,19 @@ export class AuthService {
     }
     
     if (!isPasswordValid) {
-      this.logger.warn(`비밀번호 불일치: ${email}`);
+      this.logger.warn(`비밀번호 불일치: ${emailOrCno}`);
       return null;
     }
     
     const { passwd: _, ...result } = user;
     return result;
   }
-
   async login(loginDto: LoginDto): Promise<LoginResponse> {
-    const { email, passwd } = loginDto;
-    const user = await this.validateUser(email, passwd);
+    const { emailOrCno, passwd } = loginDto;
+    const user = await this.validateUser(emailOrCno, passwd);
     
     if (!user) {
-      throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
+      throw new UnauthorizedException('아이디/이메일 또는 비밀번호가 올바르지 않습니다.');
     }
     
     const payload = { cno: user.cno, email: user.email, name: user.name };

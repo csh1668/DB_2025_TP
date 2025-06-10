@@ -5,8 +5,7 @@ import { config } from '../config/config';
 // config 파일에서 API URL 및 기타 설정 가져오기
 const API_URL = config.api.url;
 
-export const authService = {
-  // 로그인 함수
+export const authService = {  // 로그인 함수
   async login(loginDto: LoginDto): Promise<LoginResponse> {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
@@ -76,8 +75,10 @@ export const authService = {
       if (response.status === 404) {
         return false; // 사용자 없음 (사용 가능한 이메일)
       }
+
+      const resp = await response.text();
       
-      if (response.ok) {
+      if (response.ok && resp) {
         return true; // 사용자 존재 (이미 등록된 이메일)
       }
       
@@ -97,5 +98,30 @@ export const authService = {
   // 토큰 존재 여부로 로그인 상태 확인
   isLoggedIn(): boolean {
     return !!localStorage.getItem('token');
+  },
+
+  // 사용자 정보 업데이트
+  async updateUserProfile(cno: string, userData: { name?: string; passportNumber?: string }): Promise<User> {
+    const token = localStorage.getItem(config.auth.tokenKey);
+    if (!token) {
+      throw new Error('인증 토큰이 없습니다');
+    }
+
+    const response = await fetch(`${API_URL}/users/${cno}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || '사용자 정보 업데이트에 실패했습니다');
+    }
+
+    // 업데이트 후 최신 사용자 정보 조회
+    return this.getProfile();
   },
 };

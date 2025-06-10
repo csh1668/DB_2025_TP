@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
+import { AuthContext } from "@/context/AuthContext";
+import { createReservation } from "@/lib/reservationService";
 import {
   Card,
   CardHeader,
@@ -71,6 +73,7 @@ const bankOptions = [
 ];
 
 export default function PaymentPage() {
+  const { user } = useContext(AuthContext);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   
@@ -79,6 +82,16 @@ export default function PaymentPage() {
   const seatType = searchParams.get("seatType");
   const price = searchParams.get("price");
   const passengerCount = searchParams.get("passengers") || "1";
+  
+  // 추가 파라미터 추출
+  const flightCode = searchParams.get("flightCode") || "";
+  const airline = searchParams.get("airline");
+  const departureAirport = searchParams.get("departureAirport") || "";
+  const arrivalAirport = searchParams.get("arrivalAirport") || "";
+  const departureTime = searchParams.get("departureTime") || "";
+  const arrivalTime = searchParams.get("arrivalTime");
+  const departureDate = searchParams.get("departureDate") || "";
+  const departureDateTime = departureDate + " " + departureTime;
   
   // 상태 관리
   const [paymentMethod, setPaymentMethod] = useState("card");
@@ -92,28 +105,66 @@ export default function PaymentPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flight, setFlight] = useState<any>(null);
-  
-  // 항공편 정보 조회 (실제로는 API에서 가져옴)
+    // 항공편 정보 세팅
   useEffect(() => {
-    // 여기서는 임시로 하드코딩된 데이터를 사용
-    const temporaryFlightData = {
-      id: flightId,
-      flightCode: "KE123",
-      airline: "대한항공",
-      departureAirport: "ICN",
-      departureCity: "서울",
-      arrivalAirport: "NRT",
-      arrivalCity: "도쿄",
-      departureTime: "08:30",
-      arrivalTime: "11:00",
-      duration: "2시간 30분",
-      date: "2025-05-26",
-      businessPrice: 550000,
-      economyPrice: 250000,
-    };
+    if (!flightId || !departureAirport || !arrivalAirport) return;
     
-    setFlight(temporaryFlightData);
-  }, [flightId]);
+    async function loadAirportData() {
+      // 항공편 데이터 생성
+      const flightData = {
+        id: flightId,
+        flightCode: flightCode || "",
+        airline: airline || "",
+        departureAirport: departureAirport || "",
+        departureCity: "",
+        arrivalAirport: arrivalAirport || "",
+        arrivalCity: "",
+        departureTime: departureTime || "",
+        arrivalTime: arrivalTime || "",
+        duration: "",
+        date: departureDate || "",
+        price: Number(price || 0),
+      };
+      
+      try {
+        // 공항 정보 로드 (가능하면)
+        const { getAirportByCode } = await import("@/lib/airportService");
+        
+        // 출발 공항 정보 로드
+        try {
+          const depAirportInfo = await getAirportByCode(departureAirport);
+          flightData.departureCity = depAirportInfo.name;
+        } catch (err) {
+          console.error(`출발 공항 정보 로드 실패: ${departureAirport}`, err);
+        }
+        
+        // 도착 공항 정보 로드
+        try {
+          const arrAirportInfo = await getAirportByCode(arrivalAirport);
+          flightData.arrivalCity = arrAirportInfo.name;
+        } catch (err) {
+          console.error(`도착 공항 정보 로드 실패: ${arrivalAirport}`, err);
+        }
+        
+        setFlight(flightData);
+      } catch (err) {
+        console.error("항공편 정보 로드 실패:", err);
+        setFlight({
+          id: flightId,
+          flightCode: flightCode || "",
+          airline: airline || "",
+          departureAirport: departureAirport || "",
+          arrivalAirport: arrivalAirport || "",
+          departureTime: departureTime || "",
+          arrivalTime: arrivalTime || "",
+          date: departureDate || "",
+          price: Number(price || 0),
+        });
+      }
+    }
+    
+    loadAirportData();
+  }, [flightId, flightCode, airline, departureAirport, arrivalAirport, departureTime, arrivalTime, departureDate, price]);
   
   // 카드 번호 입력 처리
   const handleCardNumberChange = (index: number, value: string) => {
@@ -148,34 +199,69 @@ export default function PaymentPage() {
       }
     }
   };
-    // 결제 처리
+  // 결제 처리
   const handlePayment = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // 결제 처리 (실제로는 결제 API 호출)
-      // 데모용이므로 검증 생략하고 항상 성공으로 처리
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 지연
+      // 사용자 인증 정보 확인
+      if (!user || !user.cno) {
+        throw new Error("로그인이 필요합니다.");
+      }
+
+      console.log("결제 처리 시작");
+      console.log(`flightCode: ${flightCode}, departureDateTime: ${departureDateTime}, seatType: ${seatType}, price: ${price}, passengerCount: ${passengerCount}`);
+
+      // 필수 파라미터 확인
+      if (!flightCode || !departureDateTime || !seatType || !price) {
+        throw new Error("항공편 정보가 올바르지 않습니다.");
+      }
+      
+      // 결제 금액
+      const paymentAmount = Number(price) * Number(passengerCount);
+      
+      // 항공권 예약 API 호출
+      const reservationData = {
+        flightNo: flightCode,
+        departureDateTime: departureDateTime,
+        seatClass: seatType.charAt(0).toUpperCase() + seatType.slice(1).toLowerCase(),
+        payment: paymentAmount,
+        cno: user.cno
+      };
+      
+      console.log("예약 데이터:", reservationData);
+      
+      // 백엔드 API 호출
+      await createReservation(reservationData);
       
       setSuccess(true);
       
-      // 3초 후 메인 페이지로 이동 (실제로는 결제 완료 페이지로)
+      // 3초 후 마이페이지로 이동
       setTimeout(() => {
-        navigate('/');
+        navigate('/user');
       }, 3000);
       
     } catch (err: any) {
-      setError(err.message);
+      console.error("결제 오류:", err);
+      setError(err.message || "결제 처리 중 오류가 발생했습니다.");
     } finally {
       setLoading(false);
     }
   };
-  
-  // 취소 처리
+    // 취소 처리
   const handleCancel = () => {
     if (confirm("결제를 취소하시겠습니까?")) {
-      navigate("/flights");
+      // 검색 관련 파라미터만 유지하여 flights 페이지로 돌아가기
+      const searchFlightsParams = new URLSearchParams();
+      
+      // 필요한 검색 파라미터만 복사
+      if (departureAirport) searchFlightsParams.set("departureAirport", departureAirport);
+      if (arrivalAirport) searchFlightsParams.set("arrivalAirport", arrivalAirport);
+      if (departureDate) searchFlightsParams.set("departureDate", departureDate);
+      if (passengerCount) searchFlightsParams.set("passengers", passengerCount);
+      
+      navigate(`/flights?${searchFlightsParams.toString()}`);
     }
   };
   
@@ -204,8 +290,7 @@ export default function PaymentPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
+              <div className="space-y-4">                <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="font-bold">{flight.airline}</span>
                     <span className="text-sm text-muted-foreground">{flight.flightCode}</span>
@@ -214,24 +299,48 @@ export default function PaymentPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-center">
                       <div className="text-lg font-bold">{flight.departureTime}</div>
-                      <div className="text-sm text-muted-foreground">{flight.departureAirport}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {flight.departureCity ? (
+                          <>
+                            {flight.departureCity} ({flight.departureAirport})
+                          </>
+                        ) : (
+                          flight.departureAirport
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex-1 mx-2 relative">
                       <div className="border-t border-dashed border-muted-foreground"></div>
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-1 text-xs text-muted-foreground">{flight.duration}</div>
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-1 text-xs text-muted-foreground">
+                        직항
+                      </div>
                     </div>
                     
                     <div className="text-center">
                       <div className="text-lg font-bold">{flight.arrivalTime}</div>
-                      <div className="text-sm text-muted-foreground">{flight.arrivalAirport}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {flight.arrivalCity ? (
+                          <>
+                            {flight.arrivalCity} ({flight.arrivalAirport})
+                          </>
+                        ) : (
+                          flight.arrivalAirport
+                        )}
+                      </div>
                     </div>
-                  </div>                    <div className="text-center font-bold text-base mb-4 flex items-center justify-center gap-2">
-                      <LucideIcon name="Calendar" className="h-4 w-4 text-primary" />
-                      {format(new Date(flight.date), 'yyyy년 MM월 dd일', { locale: ko })} / 
-                      <LucideIcon name={seatType === 'business' ? 'Star' : 'Armchair'} className="h-4 w-4 text-primary" />
-                      {seatType === 'business' ? '비즈니스석' : '이코노미석'}
-                    </div>
+                  </div>
+                  
+                  <div className="text-center font-bold text-base mb-4 flex items-center justify-center gap-2">
+                    <LucideIcon name="Calendar" className="h-4 w-4 text-primary" />
+                    {flight.date ? (
+                      format(new Date(flight.date), 'yyyy년 MM월 dd일', { locale: ko })
+                    ) : (
+                      "날짜 정보 없음"
+                    )} / 
+                    <LucideIcon name={seatType === 'business' ? 'Star' : 'Armchair'} className="h-4 w-4 text-primary" />
+                    {seatType === 'business' ? '비즈니스석' : '이코노미석'}
+                  </div>
                 </div>
                 
                 <Separator />
@@ -276,15 +385,32 @@ export default function PaymentPage() {
                 결제 정보
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {success ? (
+            <CardContent>              {success ? (
                 <div className="text-center py-8">
                   <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
                     <LucideIcon name="Check" className="h-6 w-6 text-green-600" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">결제가 완료되었습니다</h3>
+                  <div className="mb-4 text-sm">
+                    <div className="flex justify-between mb-1">
+                      <span>항공편:</span>
+                      <span className="font-medium">{flight.airline} {flight.flightCode}</span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                      <span>구간:</span>
+                      <span className="font-medium">{flight.departureAirport} → {flight.arrivalAirport}</span>
+                    </div>
+                    <div className="flex justify-between mb-1">
+                      <span>좌석:</span>
+                      <span className="font-medium">{seatType === 'business' ? '비즈니스석' : '이코노미석'} {passengerCount}석</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>금액:</span>
+                      <span className="font-medium">{totalPrice.toLocaleString()}원</span>
+                    </div>
+                  </div>
                   <p className="text-muted-foreground mb-6">
-                    결제 내역은 이메일로 발송됩니다.
+                    예약 정보 및 결제 내역은 이메일로 발송됩니다.
                   </p>
                   <div className="text-sm text-muted-foreground">
                     잠시 후 메인 페이지로 이동합니다...

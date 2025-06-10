@@ -7,6 +7,9 @@ export const config = {
     timeout: 30000, // API 요청 타임아웃 (밀리초)
   },
   
+  // API 기본 URL
+  apiBaseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  
   // 인증 관련 설정
   auth: {
     tokenKey: 'token', // 로컬 스토리지에 저장되는 토큰 키

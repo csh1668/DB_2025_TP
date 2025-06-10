@@ -51,7 +51,6 @@ export default function LoginPage() {
       setIsEmailAvailable(null);
     }
   };
-
   // 로그인 처리
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,11 +58,10 @@ export default function LoginPage() {
     setLoginLoading(true);
     
     try {
-      await login(loginEmail, loginPassword);
+      await login(loginEmail, loginPassword); // loginEmail은 실제로 이메일 또는 아이디
       navigate('/'); // 로그인 성공 시 홈으로 이동
-    } catch (error: any) {
-      console.error('로그인 오류:', error);
-      setLoginError(error.message || '로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+    } catch (error: any) {      console.error('로그인 오류:', error);
+      setLoginError(error.message || '로그인에 실패했습니다. 아이디/이메일 또는 비밀번호를 확인해주세요.');
     } finally {
       setLoginLoading(false);
     }
@@ -127,13 +125,11 @@ export default function LoginPage() {
                   <AlertDescription>{loginError}</AlertDescription>
                 </Alert>
               )}
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">이메일</Label>
+              <form onSubmit={handleLogin} className="space-y-4">                <div className="space-y-2">
+                  <Label htmlFor="login-email">아이디 또는 이메일</Label>
                   <Input 
                     id="login-email" 
-                    type="email" 
-                    placeholder="이메일" 
+                    placeholder="아이디 또는 이메일" 
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required 
@@ -195,7 +191,7 @@ export default function LoginPage() {
                   <Input 
                     id="register-cno" 
                     placeholder="아이디" 
-                    value={registerName}
+                    value={registerCno}
                     onChange={(e) => setRegisterCno(e.target.value)}
                     required 
                   />
@@ -287,7 +283,7 @@ export default function LoginPage() {
                 <Button 
                   type="submit" 
                   className="w-full"
-                  disabled={registerLoading || isEmailAvailable === false || (confirmPassword && confirmPassword !== registerPassword)}
+                  disabled={registerLoading || isEmailAvailable === false || (confirmPassword !== registerPassword)}
                 >
                   {registerLoading ? '처리 중...' : '회원가입'}
                 </Button>

@@ -34,7 +34,7 @@ const defaultAuthContext: AuthContextType = {
 };
 
 // 컨텍스트 생성
-const AuthContext = createContext<AuthContextType>(defaultAuthContext);
+export const AuthContext = createContext<AuthContextType>(defaultAuthContext);
 
 // 컨텍스트 프로바이더 컴포넌트
 export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
@@ -64,12 +64,11 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({ children }) => {
     
     checkAuthStatus();
   }, []);
-
   // 로그인 함수
-  const login = async (email: string, passwd: string) => {
+  const login = async (emailOrCno: string, passwd: string) => {
     setLoading(true);
     try {
-      const response = await authService.login({ email, passwd });
+      const response = await authService.login({ emailOrCno, passwd });
       const { accessToken } = response;
       
       localStorage.setItem('token', accessToken);
