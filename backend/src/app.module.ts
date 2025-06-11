@@ -11,6 +11,7 @@ import { AirportModule } from './airports/airport.module';
 import { SeatsModule } from './seats/seats.module';
 import { CancellationModule } from './cancellations/cancellation.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { EmailModule } from './email/email.module';
 
 @Module({  imports: [
     ConfigModule.forRoot({
@@ -26,6 +27,7 @@ import { StatisticsModule } from './statistics/statistics.module';
     CancellationModule,
     AuthModule,
     StatisticsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -12,12 +12,55 @@ import { DatabaseService } from '../database/database.service';
 import { Reservation } from './reservation.interface';
 import { CreateReservationDto, UpdateReservationDto } from './dto/reservation.dto';
 import { Utils } from '../utils/utils';
+import { EmailService } from '../email/email.service';
+import { UserService } from '../users/user.service';
 
 @Injectable()
 export class ReservationService {
   private logger = new Logger(ReservationService.name);
   
-  constructor(private dbService: DatabaseService) {}
+  constructor(
+    private dbService: DatabaseService,
+    private emailService: EmailService,
+    private userService: UserService
+  ) {}
+
+  // 항공편 코드에서 항공사 이름 추출
+  private getAirlineNameByFlightCode(flightCode: string): string {
+    const airlineCode = flightCode.substring(0, 2);
+    
+    switch (airlineCode) {
+      case 'KE':
+        return '대한항공';
+      case 'OZ':
+        return '아시아나항공';
+      case '7C':
+        return '제주항공';
+      case 'LJ':
+        return '진에어';
+      case 'TW':
+        return '티웨이항공';
+      default:
+        return `${airlineCode}항공`;
+    }
+  }
+
+  // 항공편 코드에서 출발공항과 도착공항 코드 추출 (간단한 구현)
+  private parseAirportsFromFlightCode(flightCode: string): [string, string] {
+    // 예: 실제로는 더 정교한 방식으로 결정해야 함
+    // 여기서는 간단히 처리
+    if (flightCode.startsWith('KE')) {
+      return ['ICN', 'NRT']; // 인천-도쿄
+    } else if (flightCode.startsWith('OZ')) {
+      return ['ICN', 'PEK']; // 인천-베이징
+    } else if (flightCode.startsWith('7C')) {
+      return ['ICN', 'CEB']; // 인천-세부
+    } else if (flightCode.startsWith('LJ')) {
+      return ['ICN', 'BKK']; // 인천-방콕
+    } else {
+      return ['ICN', 'HKG']; // 인천-홍콩 (기본값)
+    }
+  }
 
   // DB 결과를 Reservation 객체로 매핑
   private mapToReservation(row: any): Reservation {
@@ -194,8 +237,7 @@ export class ReservationService {
         AND DEPARTUREDATETIME = TO_TIMESTAMP(:2, 'YYYY-MM-DD HH24:MI:SS') 
         AND UPPER(SEATCLASS) = UPPER(:3)
       `;
-      await this.dbService.executeNonQuery(updateSeatSql, seatParams);
-      const reservation: Reservation = {
+      await this.dbService.executeNonQuery(updateSeatSql, seatParams);      const reservation: Reservation = {
         flightNo: createReservationDto.flightNo,
         departureDateTime: Utils.formatDate(createReservationDto.departureDateTime),
         seatClass: createReservationDto.seatClass,
@@ -203,6 +245,39 @@ export class ReservationService {
         reserveDateTime: Utils.formatDate(reserveDateTime),
         cno: createReservationDto.cno
       };
+      
+      // 예약 완료 이메일 전송
+      try {
+        // 사용자 정보 조회
+        const user = await this.userService.findOne(createReservationDto.cno);
+        if (user && user.email) {
+          // 항공사 정보
+          const airline = this.getAirlineNameByFlightCode(createReservationDto.flightNo);
+          
+          // 공항 정보
+          const [departureAirport, arrivalAirport] = this.parseAirportsFromFlightCode(createReservationDto.flightNo);
+          
+          // 이메일 발송
+          await this.emailService.sendReservationConfirmation(
+            user.email, 
+            {
+              name: user.name,
+              flightNo: createReservationDto.flightNo,
+              departureDateTime: Utils.formatDate(createReservationDto.departureDateTime),
+              seatClass: createReservationDto.seatClass,
+              payment: createReservationDto.payment,
+              departureAirport,
+              arrivalAirport,
+              airline
+            }
+          );
+          this.logger.log(`예약 확인 이메일 발송 완료: ${user.email}`);
+        }
+      } catch (emailError) {
+        // 이메일 전송 실패해도 예약은 성공으로 처리
+        this.logger.error('예약 확인 이메일 발송 실패:', emailError);
+      }
+      
       return reservation;
     } catch (error) {
       this.logger.error('Error in create reservation:', error);

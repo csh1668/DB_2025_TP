@@ -7,7 +7,8 @@ import {
   Param, 
   HttpCode, 
   HttpStatus,
-  Query
+  Query,
+  Logger
 } from '@nestjs/common';
 import { 
   ApiTags, 
@@ -24,6 +25,8 @@ import { CreateReservationDto, ReservationFilterDto } from './dto/reservation.dt
 @ApiTags('reservations')
 @Controller('reservations')
 export class ReservationController {
+  private readonly logger = new Logger(ReservationController.name);
+  
   constructor(private reservationService: ReservationService) {}
 
   private capitalizeSeatClass(seatClass: string): string {
@@ -77,17 +80,18 @@ export class ReservationController {
     const parsedDateTime = new Date(departureDateTime);
     return this.reservationService.findOne(flightNo, parsedDateTime, this.capitalizeSeatClass(seatClass), cno);
   }
-
   @ApiOperation({ summary: '새 예약 생성', description: '새로운 예약을 생성합니다.' })
   @ApiBody({ type: CreateReservationDto })
   @ApiResponse({ status: 201, description: '예약 생성 성공' })
   @ApiResponse({ status: 400, description: '잘못된 요청 데이터' })
   @ApiResponse({ status: 409, description: '이미 동일한 예약이 존재함' })
   @Post()
-  @HttpCode(HttpStatus.CREATED)
-  create(@Body() createReservationDto: CreateReservationDto): Promise<Reservation> {
+  @HttpCode(HttpStatus.CREATED)  async create(@Body() createReservationDto: CreateReservationDto): Promise<Reservation> {
     createReservationDto.seatClass = this.capitalizeSeatClass(createReservationDto.seatClass);
-    return this.reservationService.create(createReservationDto);
+    this.logger.log(`예약 생성 요청: ${JSON.stringify(createReservationDto)}`);
+    const result = await this.reservationService.create(createReservationDto);
+    this.logger.log(`예약 생성 완료. 예약 정보: ${JSON.stringify(result)}`);
+    return result;
   }
 
   @ApiOperation({ summary: '예약 취소', description: '기존 예약을 삭제(취소)합니다.' })

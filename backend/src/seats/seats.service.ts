@@ -107,7 +107,7 @@ export class SeatsService {
         dateStr
       ];
 
-      this.logger.log(`항공편 좌석 조회 쿼리: ${query} | 파라미터: ${JSON.stringify(params)}`);
+      // this.logger.log(`항공편 좌석 조회 쿼리: ${query} | 파라미터: ${JSON.stringify(params)}`);
       
       const seats = await this.dbService.executeQuery<Seat>(query, params)
         .then(rows => rows.map(row => this.mapToSeat(row)));

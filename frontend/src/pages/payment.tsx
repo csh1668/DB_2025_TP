@@ -391,6 +391,9 @@ export default function PaymentPage() {
                     <LucideIcon name="Check" className="h-6 w-6 text-green-600" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">결제가 완료되었습니다</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    예약 확인 이메일이 {user?.email}로 발송되었습니다.
+                  </p>
                   <div className="mb-4 text-sm">
                     <div className="flex justify-between mb-1">
                       <span>항공편:</span>
