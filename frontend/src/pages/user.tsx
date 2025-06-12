@@ -409,7 +409,8 @@ export default function UserPage() {
         ...selectedBooking,
         status: "refunded",
         refundDate: format(new Date(), 'yyyy-MM-dd'),
-        refundAmount: cancellationInfo.refundAmount
+        refundAmount: cancellationInfo.refundAmount,
+        penalty: cancellationInfo.penalty
       };
       
       setRefunds(prev => [...prev, newRefund]);

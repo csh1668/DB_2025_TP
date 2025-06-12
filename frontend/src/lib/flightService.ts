@@ -30,8 +30,8 @@ interface SearchParams {
 }
 
 // API 기본 URL 설정
-const API_URL = `${config.apiBaseUrl}/airplanes`;
-const SEATS_URL = `${config.apiBaseUrl}/seats`;
+const API_URL = `${config.api.url}/airplanes`;
+const SEATS_URL = `${config.api.url}/seats`;
 
 // 항공편 검색 함수
 export async function searchFlights(params: SearchParams): Promise<{airplanes: Flight[], total: number}> {

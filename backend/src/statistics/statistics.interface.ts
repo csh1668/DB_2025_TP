@@ -26,3 +26,10 @@ export interface MonthlyAirlineRevenueTrend {
   MONTHLY_REVENUE: number;
   CUMULATIVE_REVENUE: number;
 }
+
+export interface PopularDestinationRank {
+  ARRIVALAIRPORT: string;
+  AIRPORTNAME: string;
+  RESERVATION_COUNT: number;
+  RANKING: number;
+}

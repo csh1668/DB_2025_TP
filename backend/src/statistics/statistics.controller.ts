@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { StatisticsService } from './statistics.service';
-import { AirlineRevenueRank, AirportAirlineRevenueRank } from './statistics.interface';
+import { AirlineRevenueRank, AirportAirlineRevenueRank, PopularDestinationRank } from './statistics.interface';
 
 @Controller('statistics')
 export class StatisticsController {
@@ -19,9 +19,13 @@ export class StatisticsController {
   async getMonthlyAirlineRevenueTrends() {
     return this.statisticsService.getMonthlyAirlineRevenueTrends();
   }
-
   @Get('airport-airline-revenue-summary')
   async getAirportAirlineRevenueSummary() {
     return this.statisticsService.getAirportAirlineRevenueSummary();
+  }
+
+  @Get('popular-destinations')
+  async getPopularDestinationsRanking(): Promise<PopularDestinationRank[]> {
+    return this.statisticsService.getPopularDestinationsRanking();
   }
 }

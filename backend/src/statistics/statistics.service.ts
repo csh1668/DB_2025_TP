@@ -250,11 +250,47 @@ export class StatisticsService {
           item.CUMULATIVE_REVENUE = cumulative;
         });
       });
-      
-      console.log('월별 항공사 매출 추이 조회 결과:', result);
+        console.log('월별 항공사 매출 추이 조회 결과:', result);
       return result;
     } catch (error) {
       this.logger.error(`월별 항공사 매출 추이 조회 중 오류 발생: ${error.message}`);
+      throw error;
+    }
+  }
+  /**
+   * 인기 여행지 순위 (도착 공항별 예약 건수로 랭킹)
+   * - PARTITION BY와 RANK() 함수를 사용하여 도착 공항별 예약 건수 순위 계산
+   * - 출발 시간이 현재보다 이후인 예약만 고려함
+   */
+  async getPopularDestinationsRanking(): Promise<any> {
+    try {
+      const sql = `
+        SELECT 
+          ar.arrivalAirport AS ARRIVALAIRPORT,
+          ar.reservation_count AS RESERVATION_COUNT,
+          RANK() OVER (ORDER BY ar.reservation_count DESC) AS RANKING
+        FROM 
+          (
+          SELECT 
+            a.arrivalAirport,
+            COUNT(r.flightNo) as reservation_count
+          FROM 
+            AIRPLANE a
+            JOIN RESERVE r ON r.flightNo = a.flightNo AND r.departureDateTime = a.departureDateTime
+          WHERE 
+            a.departureDateTime > SYSTIMESTAMP
+          GROUP BY 
+            a.arrivalAirport
+        ) ar
+        ORDER BY 
+          RANKING
+      `;
+
+      const result = await this.databaseService.executeQuery(sql);
+      console.log('인기 여행지 순위 조회 결과:', result);
+      return result;
+    } catch (error) {
+      this.logger.error(`인기 여행지 순위 조회 중 오류 발생: ${error.message}`);
       throw error;
     }
   }

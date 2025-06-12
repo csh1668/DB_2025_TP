@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import LucideIcon from "../icons/lucideIcon";
 
+// 화면을 일정 이상 스크롤해서 내릴 경우 표시되는 최상단으로 올리는 버튼
 export default function ScrollToTopButton() {
     const [visible, setVisible] = useState(false);
 

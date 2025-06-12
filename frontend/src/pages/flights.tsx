@@ -351,9 +351,7 @@ export default function FlightsPage() {  const [searchParams] = useSearchParams(
           ) : error ? (
             <span className="text-destructive">{error}</span>
           ) : (
-            <span>총 {totalFlights}개의 항공편이 
-              {sortBy.includes("economy") ? " 가격순으로 " : " 출발시간순으로 "}
-              정렬되었습니다.
+            <span>총 {totalFlights}개의 항공편이 검색되었습니다.
             </span>
           )}
         </div>

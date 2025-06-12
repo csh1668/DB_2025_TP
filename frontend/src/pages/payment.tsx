@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { AuthContext } from "@/context/AuthContext";
-import { createReservation } from "@/lib/reservationService";
+import { createReservation, checkDuplicateReservation } from "@/lib/reservationService";
 import {
   Card,
   CardHeader,
@@ -100,11 +100,11 @@ export default function PaymentPage() {
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [installment, setInstallment] = useState("0");
-  const [bankCode, setBankCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [bankCode, setBankCode] = useState("");  const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flight, setFlight] = useState<any>(null);
+  const [alreadyBooked, setAlreadyBooked] = useState(false);
     // 항공편 정보 세팅
   useEffect(() => {
     if (!flightId || !departureAirport || !arrivalAirport) return;
@@ -165,6 +165,28 @@ export default function PaymentPage() {
     
     loadAirportData();
   }, [flightId, flightCode, airline, departureAirport, arrivalAirport, departureTime, arrivalTime, departureDate, price]);
+  
+  // 중복 예약 확인
+  useEffect(() => {
+    const checkBookingStatus = async () => {
+      if (!user || !user.cno || !flightCode || !departureDateTime) return;
+      
+      try {
+        // 사용자가 이미 해당 항공편을 예약했는지 확인
+        const isDuplicate = await checkDuplicateReservation(user.cno, flightCode, departureDateTime);
+        
+        if (isDuplicate) {
+          console.log('이미 예약된 항공편:', flightCode, departureDateTime);
+          setAlreadyBooked(true);
+          setError('이미 예약하신 항공편입니다. 동일한 항공편을 중복 예약할 수 없습니다.');
+        }
+      } catch (err) {
+        console.error('예약 상태 확인 중 오류:', err);
+      }
+    };
+    
+    checkBookingStatus();
+  }, [user, flightCode, departureDateTime]);
   
   // 카드 번호 입력 처리
   const handleCardNumberChange = (index: number, value: string) => {
@@ -533,11 +555,11 @@ export default function PaymentPage() {
                     >
                       <LucideIcon name="X" className="h-4 w-4 mr-1" />
                       취소
-                    </Button>
-                    <Button
+                    </Button>                    <Button
                       className="w-full sm:w-auto"
                       onClick={handlePayment}
-                      disabled={loading}
+                      disabled={loading || alreadyBooked}
+                      title={alreadyBooked ? "이미 예약된 항공편입니다" : ""}
                     >
                       {loading ? (
                         <span className="flex items-center">

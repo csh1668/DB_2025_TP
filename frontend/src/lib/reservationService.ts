@@ -92,6 +92,31 @@ export const getUserReservations = async (cno: string, fromDate?: string, toDate
   return handleErrors(response);
 };
 
+// 특정 항공편에 대한 사용자의 예약 여부 확인
+export const checkDuplicateReservation = async (
+  cno: string,
+  flightNo: string,
+  departureDateTime: string
+): Promise<boolean> => {
+  try {
+    // 사용자의 예약 목록을 가져옴 (날짜 필터 없이)
+    const reservations = await getUserReservations(cno);
+    
+    // 동일한 항공편과 출발 시간을 가진 예약이 있는지 확인
+    const duplicateReservation = reservations.find(
+      reservation => 
+        reservation.flightNo === flightNo && 
+        reservation.departureDateTime === departureDateTime
+    );
+    
+    // 중복 예약이 있으면 true, 없으면 false 반환
+    return !!duplicateReservation;
+  } catch (error) {
+    console.error('중복 예약 확인 중 오류:', error);
+    return false; // 오류 발생 시 안전하게 false 반환
+  }
+};
+
 // 예약 취소 (환불 처리)
 export const createCancellation = async (data: CreateCancellationRequest): Promise<Cancellation> => {
   const response = await fetch(`${API_URL}/cancellations`, {

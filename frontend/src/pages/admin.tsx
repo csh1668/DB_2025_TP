@@ -47,7 +47,8 @@ import {
   type AirlineRevenueRank,
   type AirportAirlineRevenueRank,
   type AirportAirlineRevenueSummary,
-  type MonthlyAirlineRevenueTrend
+  type MonthlyAirlineRevenueTrend,
+  type PopularDestinationRank
 } from "@/lib/statisticsService";
 
 // Chart.js 컴포넌트 등록
@@ -102,12 +103,12 @@ export default function AdminPage() {
   // 드롭다운 선택 상태
   const [selectedAirport, setSelectedAirport] = useState<string>("");
   const [selectedAirline, setSelectedAirline] = useState<string>("");
-  
-  // 통계 데이터 상태
+    // 통계 데이터 상태
   const [airlineRevenueData, setAirlineRevenueData] = useState<AirlineRevenueRank[]>([]);
   const [airportAirlineData, setAirportAirlineData] = useState<AirportAirlineRevenueRank[]>([]);
   const [monthlyRevenueData, setMonthlyRevenueData] = useState<MonthlyAirlineRevenueTrend[]>([]);
   const [airportRevenueSummary, setAirportRevenueSummary] = useState<AirportAirlineRevenueSummary[]>([]);
+  const [popularDestinations, setPopularDestinations] = useState<PopularDestinationRank[]>([]);
   
   // 공항 및 항공사 목록
   const airports = [...new Set(airportAirlineData.map(item => item.DEPARTUREAIRPORT))];
@@ -129,10 +130,33 @@ export default function AdminPage() {
         // 월별 매출 추이
       const monthlyRevenue = await statisticsService.getMonthlyRevenueTrends();
       setMonthlyRevenueData(monthlyRevenue);
-      
-      // 공항 및 항공사별 매출 요약 (ROLLUP)
+        // 공항 및 항공사별 매출 요약 (ROLLUP)
       const revenueSummary = await statisticsService.getAirportAirlineRevenueSummary();
       setAirportRevenueSummary(revenueSummary);
+        // 인기 여행지 (도착 공항별 랭킹)
+      const popularDestinationsData = await statisticsService.getPopularDestinations();
+      
+      // 공항 코드를 이용해 공항 이름 정보 가져오기
+      const { getAirportByCode } = await import('@/lib/airportService');
+      const enrichedDestinations = await Promise.all(
+        popularDestinationsData.map(async (destination) => {
+          try {
+            const airportInfo = await getAirportByCode(destination.ARRIVALAIRPORT);
+            return {
+              ...destination,
+              AIRPORTNAME: airportInfo.name || destination.ARRIVALAIRPORT
+            };
+          } catch (error) {
+            console.error(`공항 정보 조회 실패: ${destination.ARRIVALAIRPORT}`, error);
+            return {
+              ...destination,
+              AIRPORTNAME: destination.ARRIVALAIRPORT
+            };
+          }
+        })
+      );
+      
+      setPopularDestinations(enrichedDestinations);
       
     } catch (err) {
       setError(err instanceof Error ? err.message : '데이터 로드 중 오류가 발생했습니다');
@@ -228,8 +252,7 @@ export default function AdminPage() {
       )}
       
       {/* 탭 네비게이션 */}
-      <Tabs defaultValue="airline-revenue" onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6">
+      <Tabs defaultValue="airline-revenue" onValueChange={setActiveTab} className="w-full">        <TabsList className="mb-6">
           <TabsTrigger value="airline-revenue" className="flex items-center gap-1">
             <LucideIcon name="ChartBar" className="h-4 w-4" /> 항공사별 매출
           </TabsTrigger>
@@ -238,6 +261,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="monthly-trends" className="flex items-center gap-1">
             <LucideIcon name="TrendingUp" className="h-4 w-4" /> 월별 매출 추이
+          </TabsTrigger>
+          <TabsTrigger value="popular-destinations" className="flex items-center gap-1">
+            <LucideIcon name="MapPin" className="h-4 w-4" /> 인기 여행지
           </TabsTrigger>
         </TabsList>
 
@@ -535,8 +561,87 @@ export default function AdminPage() {
                   </Table>
                 )}
               </CardContent>
-            </Card>
-          </div>
+            </Card>          </div>
+        </TabsContent>        {/* 인기 여행지 탭 */}
+        <TabsContent value="popular-destinations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>인기 여행지 순위</CardTitle>
+              <CardDescription>
+                예약 건수 기준으로 인기 있는 도착 공항(여행지) 순위입니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="h-[300px] flex items-center justify-center">
+                  <LucideIcon name="Loader" className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>순위</TableHead>
+                          <TableHead>공항 코드</TableHead>
+                          <TableHead>공항 이름</TableHead>
+                          <TableHead className="text-right">예약 수</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {popularDestinations.map((item) => (
+                          <TableRow key={item.ARRIVALAIRPORT}>
+                            <TableCell className="font-medium">
+                              {item.RANKING}
+                            </TableCell>
+                            <TableCell>{item.ARRIVALAIRPORT}</TableCell>
+                            <TableCell>{item.AIRPORTNAME}</TableCell>
+                            <TableCell className="text-right">{formatNumber(item.RESERVATION_COUNT)}</TableCell>
+                          </TableRow>
+                        ))}
+                        {popularDestinations.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-4">
+                              데이터가 없습니다
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <div>
+                    <Bar
+                      data={{
+                        labels: popularDestinations.slice(0, 7).map(d => d.AIRPORTNAME),
+                        datasets: [
+                          {
+                            label: '예약 건수',
+                            data: popularDestinations.slice(0, 7).map(d => d.RESERVATION_COUNT),
+                            backgroundColor: backgroundColors,
+                            borderColor: borderColors,
+                            borderWidth: 1
+                          }
+                        ]
+                      }}
+                      options={{
+                        responsive: true,
+                        plugins: {
+                          legend: {
+                            position: 'top',
+                          },
+                          title: {
+                            display: true,
+                            text: '인기 여행지 TOP 7'
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

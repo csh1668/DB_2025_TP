@@ -3,14 +3,11 @@ import {
   Logger, 
   ConflictException, 
   NotFoundException, 
-  BadRequestException,
   InternalServerErrorException
 } from '@nestjs/common';
-import * as oracledb from 'oracledb';
-import * as moment from 'moment';
 import { DatabaseService } from '../database/database.service';
 import { Reservation } from './reservation.interface';
-import { CreateReservationDto, UpdateReservationDto } from './dto/reservation.dto';
+import { CreateReservationDto } from './dto/reservation.dto';
 import { Utils } from '../utils/utils';
 import { EmailService } from '../email/email.service';
 import { UserService } from '../users/user.service';
@@ -25,42 +22,9 @@ export class ReservationService {
     private userService: UserService
   ) {}
 
-  // 항공편 코드에서 항공사 이름 추출
-  private getAirlineNameByFlightCode(flightCode: string): string {
-    const airlineCode = flightCode.substring(0, 2);
-    
-    switch (airlineCode) {
-      case 'KE':
-        return '대한항공';
-      case 'OZ':
-        return '아시아나항공';
-      case '7C':
-        return '제주항공';
-      case 'LJ':
-        return '진에어';
-      case 'TW':
-        return '티웨이항공';
-      default:
-        return `${airlineCode}항공`;
-    }
-  }
 
-  // 항공편 코드에서 출발공항과 도착공항 코드 추출 (간단한 구현)
-  private parseAirportsFromFlightCode(flightCode: string): [string, string] {
-    // 예: 실제로는 더 정교한 방식으로 결정해야 함
-    // 여기서는 간단히 처리
-    if (flightCode.startsWith('KE')) {
-      return ['ICN', 'NRT']; // 인천-도쿄
-    } else if (flightCode.startsWith('OZ')) {
-      return ['ICN', 'PEK']; // 인천-베이징
-    } else if (flightCode.startsWith('7C')) {
-      return ['ICN', 'CEB']; // 인천-세부
-    } else if (flightCode.startsWith('LJ')) {
-      return ['ICN', 'BKK']; // 인천-방콕
-    } else {
-      return ['ICN', 'HKG']; // 인천-홍콩 (기본값)
-    }
-  }
+
+
 
   // DB 결과를 Reservation 객체로 매핑
   private mapToReservation(row: any): Reservation {
@@ -118,7 +82,8 @@ export class ReservationService {
   }  // 사용자별 예약 조회 (날짜 필터링 지원)
   async findByCustomerId(cno: string, fromDate?: string, toDate?: string): Promise<Reservation[]> {
     try {
-      let sql = `SELECT * FROM RESERVE WHERE CNO = :1`;
+      // 현재 시간 기준으로 출발 시간이 미래인 항공편만 조회
+      let sql = `SELECT * FROM RESERVE WHERE CNO = :1 AND DEPARTUREDATETIME > SYSTIMESTAMP`;
       const queryParams = [cno];
       let paramIndex = 2;
       
@@ -145,7 +110,7 @@ export class ReservationService {
     } catch (error) {
       this.logger.error(`Error in findByCustomerId (${cno}):`, error);
       throw new InternalServerErrorException('사용자 예약 정보 조회 중 오류가 발생했습니다.');
-    }
+   1 }
   }
     // 항공편별 예약 조회
   async findByFlight(flightNo: string, departureDateTime: Date): Promise<Reservation[]> {
@@ -334,6 +299,41 @@ export class ReservationService {
         throw error;
       }
       throw new InternalServerErrorException('예약 삭제 중 오류가 발생했습니다.');
+    }
+  }
+
+  // 항공편 코드에서 출발공항과 도착공항 코드 추출 (간단한 구현)
+  private parseAirportsFromFlightCode(flightCode: string): [string, string] {
+    if (flightCode.startsWith('KE')) {
+      return ['ICN', 'NRT']; // 인천-도쿄
+    } else if (flightCode.startsWith('OZ')) {
+      return ['ICN', 'PEK']; // 인천-베이징
+    } else if (flightCode.startsWith('7C')) {
+      return ['ICN', 'CEB']; // 인천-세부
+    } else if (flightCode.startsWith('LJ')) {
+      return ['ICN', 'BKK']; // 인천-방콕
+    } else {
+      return ['ICN', 'HKG']; // 인천-홍콩 (기본값)
+    }
+  }
+  
+  // 항공편 코드에서 항공사 이름 추출
+  private getAirlineNameByFlightCode(flightCode: string): string {
+    const airlineCode = flightCode.substring(0, 2);
+    
+    switch (airlineCode) {
+      case 'KE':
+        return '대한항공';
+      case 'OZ':
+        return '아시아나항공';
+      case '7C':
+        return '제주항공';
+      case 'LJ':
+        return '진에어';
+      case 'TW':
+        return '티웨이항공';
+      default:
+        return `${airlineCode}항공`;
     }
   }
 }

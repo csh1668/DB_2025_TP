@@ -2,7 +2,7 @@ import type { Airport } from '../components/forms/airportSelectorPopover';
 import { config } from '../config/config';
 
 // API 기본 URL 설정
-const API_URL = `${config.apiBaseUrl}/airports`;
+const API_URL = `${config.api.url}/airports`;
 
 // 서버에서 받아온 공항 데이터를 프론트엔드 Airport 타입으로 변환하는 함수
 function parseAirportString(airportString: string): Airport {

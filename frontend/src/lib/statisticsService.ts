@@ -39,6 +39,13 @@ export interface AirportAirlineRevenueSummary {
   SUMMARY_LEVEL: number;
 }
 
+export interface PopularDestinationRank {
+  ARRIVALAIRPORT: string;
+  RESERVATION_COUNT: number;
+  RANKING: number;
+  AIRPORTNAME?: string; // 백엔드에서 제공하지 않고 프론트에서 추가될 필드
+}
+
 class StatisticsService {
   private readonly baseUrl = `${config.api.url}/statistics`;
 
@@ -71,12 +78,21 @@ class StatisticsService {
     
     return response.json();
   }
-
   async getAirportAirlineRevenueSummary() {
     const response = await fetch(`${this.baseUrl}/airport-airline-revenue-summary`);
     
     if (!response.ok) {
       throw new Error(`공항 및 항공사별 매출 요약 조회 실패: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+
+  async getPopularDestinations(): Promise<PopularDestinationRank[]> {
+    const response = await fetch(`${this.baseUrl}/popular-destinations`);
+    
+    if (!response.ok) {
+      throw new Error(`인기 여행지 순위 조회 실패: ${response.statusText}`);
     }
     
     return response.json();

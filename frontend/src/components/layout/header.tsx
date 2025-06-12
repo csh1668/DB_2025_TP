@@ -27,7 +27,6 @@ export function Header() {
           <span className="text-2xl font-bold">하늘길</span>
         </Link>        <nav className="md:flex gap-6">
           <Link to="/flights" className="text-sm font-medium hover:underline">항공권 검색</Link>
-          <Link to="/bookings" className="text-sm font-medium hover:underline">예약 관리</Link>
           {user?.cno === config.auth.adminCno && (
             <Link to="/admin" className="text-sm font-medium hover:underline">관리자</Link>
           )}
